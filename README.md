@@ -1,4 +1,7 @@
-# LLM Council V2
+# LLM Council v2
+
+![header](header.png "LLM Council v2")
+
 
 A modular AI comparison app built with Python and Streamlit. Compare responses from multiple OpenRouter models side by side and vote on the best outputs to build your own model leaderboard.
 
@@ -6,22 +9,18 @@ A modular AI comparison app built with Python and Streamlit. Compare responses f
 
 - ⚖️ **Side-by-side comparison** - Run the same prompt through multiple AI models simultaneously
 - 🎭 **Anonymous mode** - Model names hidden by default for unbiased evaluation (toggle to reveal)
-- 📊 **Model metadata** - View context length and token costs (input/output per million) when selecting models
 - ⚡ **Parallel execution** - Fast comparisons with concurrent API calls
-- 📝 **Markdown rendering** - View model outputs as formatted markdown or raw text
 - 🗳️ **Voting system** - Vote on best and worst responses to track model performance
 - 🏆 **Leaderboard** - See cumulative rankings based on your votes (net score = best - worst)
 - 💾 **Response caching** - Optional caching to save costs on repeated prompts
-- 🎨 **Color-coded results** - Easy visual distinction between model outputs
-- 🔑 **Flexible API key setup** - Use environment variable or enter directly in the app
 
 ## Quick Start
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/yourusername/llm-council-v2.git
-cd llm-council-v2
+git clone https://github.com/laceyp99/LLM-Council-v2.git
+cd LLM-Council-v2
 ```
 
 Create a virtual environment (recommended):
@@ -89,6 +88,14 @@ After a comparison:
 - View all models ranked by net score (Best votes - Worst votes)
 - Sort by different metrics (net score, best votes, worst votes, total votes)
 - Reset all votes if needed
+
+## Tech Stack
+
+- **Language:** Python 3.10+
+- **API:** OpenRouter (access to 100+ LLM models)
+- **Frontend:** Streamlit
+- **Storage:** JSON files (local, in `data/` directory)
+- **Package Management:** pip
 
 ## Project Structure
 

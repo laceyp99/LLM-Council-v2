@@ -5,6 +5,7 @@ A modular AI comparison app built with Python and Streamlit. Compare responses f
 ## Features
 
 - ⚖️ **Side-by-side comparison** - Run the same prompt through multiple AI models simultaneously
+- 🎭 **Anonymous mode** - Model names hidden by default for unbiased evaluation (toggle to reveal)
 - 📊 **Model metadata** - View context length and token costs (input/output per million) when selecting models
 - ⚡ **Parallel execution** - Fast comparisons with concurrent API calls
 - 📝 **Markdown rendering** - View model outputs as formatted markdown or raw text

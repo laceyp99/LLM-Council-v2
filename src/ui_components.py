@@ -212,13 +212,28 @@ def render_model_slot(
     
     return selected
 
+# Anonymous labels for models
+ANONYMOUS_LABELS = [
+    "Model A", "Model B", "Model C", "Model D", "Model E",
+    "Model F", "Model G", "Model H", "Model I", "Model J"
+]
+
+
+def get_anonymous_label(index: int) -> str:
+    """Get an anonymous label for a model by index."""
+    if index < len(ANONYMOUS_LABELS):
+        return ANONYMOUS_LABELS[index]
+    return f"Model {index + 1}"
+
+
 def render_result_card(
     result: ComparisonResult,
     index: int,
     on_vote_best: Optional[Callable] = None,
     on_vote_worst: Optional[Callable] = None,
     votes_disabled: bool = False,
-    already_voted: bool = False
+    already_voted: bool = False,
+    anonymous_mode: bool = False
 ):
     """
     Render a result card for a model response.
@@ -230,8 +245,12 @@ def render_result_card(
         on_vote_worst: Callback for worst vote
         votes_disabled: Whether voting is disabled
         already_voted: Whether this model was already voted on
+        anonymous_mode: Whether to hide the model name
     """
     color = get_color(result.color_index)
+    
+    # Determine display name based on anonymous mode
+    display_name = get_anonymous_label(index) if anonymous_mode else result.model_name
     
     # Card container
     if result.success:
@@ -244,12 +263,12 @@ def render_result_card(
         unsafe_allow_html=True
     )
     
-    # Header with model name
+    # Header with model name (or anonymous label)
     header_col1, header_col2 = st.columns([3, 1])
     
     with header_col1:
         st.markdown(
-            f'<span class="model-header" style="color: {color["text"]}">{result.model_name}</span>',
+            f'<span class="model-header" style="color: {color["text"]}">{display_name}</span>',
             unsafe_allow_html=True
         )
     
@@ -338,7 +357,8 @@ def render_results_grid(
     columns: int = 2,
     on_vote_best: Optional[Callable] = None,
     on_vote_worst: Optional[Callable] = None,
-    votes_disabled: bool = False
+    votes_disabled: bool = False,
+    anonymous_mode: bool = False
 ):
     """
     Render results in a responsive grid.
@@ -349,6 +369,7 @@ def render_results_grid(
         on_vote_best: Callback for best vote
         on_vote_worst: Callback for worst vote
         votes_disabled: Whether voting is disabled
+        anonymous_mode: Whether to hide model names
     """
     # Get voted models from session state
     voted_models = st.session_state.get("voted_this_session", set())
@@ -365,7 +386,8 @@ def render_results_grid(
                 on_vote_best=on_vote_best,
                 on_vote_worst=on_vote_worst,
                 votes_disabled=votes_disabled,
-                already_voted=result.model_id in voted_models
+                already_voted=result.model_id in voted_models,
+                anonymous_mode=anonymous_mode
             )
 
 

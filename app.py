@@ -51,7 +51,8 @@ def init_session_state():
         "force_refresh_models": False,
         "model_filter": "",
         "current_page": "compare",
-        "api_key_error": None
+        "api_key_error": None,
+        "anonymous_mode": True  # Hide model names by default for unbiased evaluation
     }
     
     for key, value in defaults.items():
@@ -337,6 +338,19 @@ def render_compare_page():
         st.divider()
         st.subheader("Results")
         
+        # Anonymous mode toggle
+        anon_col1, anon_col2 = st.columns([1, 3])
+        with anon_col1:
+            show_names = st.toggle(
+                "🔓 Reveal model names",
+                value=not st.session_state.anonymous_mode,
+                help="Toggle to show/hide model names for unbiased evaluation"
+            )
+            st.session_state.anonymous_mode = not show_names
+        with anon_col2:
+            if st.session_state.anonymous_mode:
+                st.caption("🎭 Anonymous mode: Model names hidden for unbiased voting")
+        
         # Summary stats
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -365,7 +379,8 @@ def render_compare_page():
             columns=columns,
             on_vote_best=handle_vote_best,
             on_vote_worst=handle_vote_worst,
-            votes_disabled=False
+            votes_disabled=False,
+            anonymous_mode=st.session_state.anonymous_mode
         )
         
         # Show voted models

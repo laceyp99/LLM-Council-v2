@@ -5,8 +5,8 @@ Reusable Streamlit UI components with styling for the comparison app.
 
 import streamlit as st
 from typing import List, Optional, Callable
-from compare_logic import ComparisonResult
-from model_metadata import ModelInfo
+from src.compare_logic import ComparisonResult
+from src.model_metadata import ModelInfo
 
 # Color palette for model cards (tints and borders)
 MODEL_COLORS = [
@@ -522,7 +522,7 @@ def render_settings_sidebar(
         st.rerun()
     
     if st.sidebar.button("🗑️ Clear Cache"):
-        from cache_manager import get_cache_manager
+        from src.cache_manager import get_cache_manager
         get_cache_manager().clear()
         st.sidebar.success("Cache cleared!")
     

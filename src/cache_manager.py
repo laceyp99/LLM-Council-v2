@@ -16,7 +16,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Default cache file location
-CACHE_FILE = Path(__file__).parent / "data" / "response_cache.json"
+PROJECT_DIR = Path(__file__).parent.parent
+CACHE_FILE = PROJECT_DIR / "data" / "response_cache.json"
 MAX_CACHE_ENTRIES = 1000  # Maximum number of cached responses
 
 

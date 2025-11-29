@@ -10,13 +10,14 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, asdict
 import logging
 
-from openrouter_client import OpenRouterClient
+# from src.openrouter_client import OpenRouterClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Default cache file location
-CACHE_FILE = Path(__file__).parent / "data" / "models_cache.json"
+PROJECT_DIR = Path(__file__).parent.parent
+CACHE_FILE = PROJECT_DIR / "data" / "models_cache.json"
 CACHE_EXPIRY_HOURS = 24  # Refresh cache after this many hours
 
 

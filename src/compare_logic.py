@@ -9,9 +9,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import logging
 
-from openrouter_client import OpenRouterClient, ModelResponse
-from cache_manager import get_cache_manager, CachedResponse
-from model_metadata import get_metadata_manager, ModelInfo
+from src.openrouter_client import OpenRouterClient, ModelResponse
+from src.cache_manager import get_cache_manager, CachedResponse
+from src.model_metadata import get_metadata_manager, ModelInfo
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

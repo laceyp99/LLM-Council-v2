@@ -9,12 +9,12 @@ import streamlit as st
 from typing import List, Optional
 
 # Import local modules
-from openrouter_client import validate_api_key
-from model_metadata import get_metadata_manager, ModelInfo
-from leaderboard_storage import get_leaderboard_storage
-from cache_manager import get_cache_manager
-from compare_logic import run_comparison, ComparisonSession
-from ui_components import (
+from src.openrouter_client import validate_api_key
+from src.model_metadata import get_metadata_manager, ModelInfo
+from src.leaderboard_storage import get_leaderboard_storage
+from src.cache_manager import get_cache_manager
+from src.compare_logic import run_comparison, ComparisonSession
+from src.ui_components import (
     inject_custom_css,
     render_model_selector,
     render_results_grid,

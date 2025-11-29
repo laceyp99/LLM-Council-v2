@@ -93,19 +93,20 @@ After a comparison:
 
 ```
 llm-council-v2/
-├── app.py                  # Main Streamlit application
-├── openrouter_client.py    # OpenRouter API client with retries
-├── model_metadata.py       # Model specs fetching and caching
-├── compare_logic.py        # Parallel comparison orchestration
-├── leaderboard_storage.py  # Vote persistence and rankings
-├── cache_manager.py        # Response caching system
-├── ui_components.py        # Reusable Streamlit components
-├── requirements.txt        # Python dependencies
-├── .env.example            # Example environment file
-├── data/                   # Local JSON storage (auto-created)
-│   ├── models_cache.json   # Cached model metadata
-│   ├── votes.json          # Voting history
-│   └── response_cache.json # Cached responses
+├── src/
+│   ├── __init__.py
+│   ├── openrouter_client.py
+│   ├── model_metadata.py
+│   ├── compare_logic.py
+│   ├── leaderboard_storage.py
+│   ├── cache_manager.py
+│   └── ui_components.py
+├── data/
+│   └── .gitkeep
+├── app.py
+├── requirements.txt
+├── .env.example
+├── .gitignore
 └── README.md
 ```
 

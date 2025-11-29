@@ -1,0 +1,5 @@
+# This file ensures the data directory is tracked by git
+# JSON data files will be created here:
+# - models_cache.json (cached OpenRouter model metadata)
+# - votes.json (voting leaderboard data)
+# - response_cache.json (cached model responses)

@@ -10,7 +10,7 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, asdict
 import logging
 
-# from src.openrouter_client import OpenRouterClient
+from src.openrouter_client import OpenRouterClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ Orchestrates parallel model calls and result aggregation.
 """
 
 import concurrent.futures
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
@@ -12,6 +12,7 @@ import logging
 from src.openrouter_client import OpenRouterClient, ModelResponse
 from src.cache_manager import get_cache_manager, CachedResponse
 from src.model_metadata import get_metadata_manager, ModelInfo
+from src.voting_logic import run_voting_session, VotingSession, get_voting_winner
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +44,9 @@ class ComparisonSession:
     total_latency_ms: float = 0
     successful_count: int = 0
     failed_count: int = 0
+    # Voting session (populated after voting step)
+    voting_session: Optional[VotingSession] = None
+    voting_enabled: bool = False
 
 
 def run_single_model(
@@ -273,3 +277,77 @@ def estimate_cost(
         "models": costs,
         "total_estimated_cost": total_cost
     }
+
+
+def run_comparison_with_voting(
+    api_key: str,
+    prompt: str,
+    model_ids: List[str],
+    temperature: float = 0.7,
+    use_cache: bool = True,
+    max_workers: int = 5,
+    progress_callback: Optional[callable] = None,
+    voting_progress_callback: Optional[callable] = None
+) -> ComparisonSession:
+    """
+    Run a comparison across multiple models, then have them vote on the best response.
+    
+    Voting only occurs if there are 2 or more successful responses.
+    
+    Args:
+        api_key: OpenRouter API key
+        prompt: User prompt to send to all models
+        model_ids: List of model IDs to compare
+        temperature: Sampling temperature for initial responses
+        use_cache: Whether to use response caching
+        max_workers: Maximum concurrent API calls
+        progress_callback: Optional callback for comparison progress
+        voting_progress_callback: Optional callback for voting progress
+        
+    Returns:
+        ComparisonSession with all results and voting session
+    """
+    # First, run the normal comparison
+    session = run_comparison(
+        api_key=api_key,
+        prompt=prompt,
+        model_ids=model_ids,
+        temperature=temperature,
+        use_cache=use_cache,
+        max_workers=max_workers,
+        progress_callback=progress_callback
+    )
+    
+    # Only run voting if we have 2+ successful responses
+    if session.successful_count < 2:
+        logger.info(f"Skipping voting: only {session.successful_count} successful responses")
+        session.voting_enabled = False
+        return session
+    
+    session.voting_enabled = True
+    
+    # Build the model responses dict for voting (only successful responses)
+    model_responses = {}
+    model_names = {}
+    
+    for result in session.results:
+        if result.success and result.output_text:
+            model_responses[result.model_id] = result.output_text
+            model_names[result.model_id] = result.model_name
+    
+    # Run the voting session
+    voting_session = run_voting_session(
+        api_key=api_key,
+        original_prompt=prompt,
+        model_responses=model_responses,
+        model_names=model_names,
+        temperature=0.3,  # Lower temperature for voting
+        max_workers=max_workers,
+        progress_callback=voting_progress_callback
+    )
+    
+    session.voting_session = voting_session
+    
+    logger.info(f"Voting complete: winner determination available")
+    
+    return session

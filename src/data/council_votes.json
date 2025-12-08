@@ -1,0 +1,25 @@
+{
+  "last_updated": "2025-12-07T23:24:15.736723",
+  "scores": {
+    "openai/gpt-oss-120b": {
+      "model_name": "OpenAI: gpt-oss-120b",
+      "votes_received": 0,
+      "times_participated": 1
+    },
+    "openai/gpt-3.5-turbo": {
+      "model_name": "OpenAI: GPT-3.5 Turbo",
+      "votes_received": 0,
+      "times_participated": 1
+    },
+    "openai/gpt-5-nano": {
+      "model_name": "OpenAI: GPT-5 Nano",
+      "votes_received": 0,
+      "times_participated": 1
+    },
+    "openai/gpt-oss-20b": {
+      "model_name": "OpenAI: gpt-oss-20b",
+      "votes_received": 2,
+      "times_participated": 1
+    }
+  }
+}

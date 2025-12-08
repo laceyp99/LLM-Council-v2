@@ -477,6 +477,7 @@ def render_settings_sidebar(
     cache_enabled: bool,
     use_env_api_key: bool = False,
     env_api_key_available: bool = False,
+    council_voting_enabled: bool = True,
     on_api_key_change: Optional[Callable] = None,
     on_temperature_change: Optional[Callable] = None,
     on_cache_toggle: Optional[Callable] = None
@@ -485,7 +486,7 @@ def render_settings_sidebar(
     Render the settings sidebar.
     
     Returns:
-        Tuple of (api_key, temperature, cache_enabled, use_env_api_key)
+        Tuple of (api_key, temperature, cache_enabled, use_env_api_key, council_voting_enabled)
     """
     st.sidebar.header("⚙️ Settings")
     
@@ -537,6 +538,12 @@ def render_settings_sidebar(
         help="Cache responses for identical prompts"
     )
     
+    new_council_voting = st.sidebar.checkbox(
+        "🗳️ Enable Council Voting",
+        value=council_voting_enabled,
+        help="After responses, each model votes for the best answer (requires 2+ models)"
+    )
+    
     st.sidebar.divider()
     
     if st.sidebar.button("🔄 Refresh Models"):
@@ -548,4 +555,4 @@ def render_settings_sidebar(
         get_cache_manager().clear()
         st.sidebar.success("Cache cleared!")
     
-    return new_api_key, new_temperature, new_cache_enabled, new_use_env
+    return new_api_key, new_temperature, new_cache_enabled, new_use_env, new_council_voting

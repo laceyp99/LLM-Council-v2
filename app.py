@@ -12,8 +12,10 @@ from typing import List, Optional
 from src.openrouter_client import validate_api_key
 from src.model_metadata import get_metadata_manager, ModelInfo
 from src.leaderboard_storage import get_leaderboard_storage
+from src.council_leaderboard import get_council_leaderboard_storage
 from src.cache_manager import get_cache_manager
-from src.compare_logic import run_comparison, ComparisonSession
+from src.compare_logic import run_comparison, run_comparison_with_voting, ComparisonSession
+from src.voting_logic import VotingSession, get_voting_winner
 from src.ui_components import (
     inject_custom_css,
     render_model_selector,
@@ -44,6 +46,7 @@ def init_session_state():
         "env_api_key_available": bool(env_api_key),
         "temperature": 0.7,
         "cache_enabled": True,
+        "council_voting_enabled": True,  # Enable council voting by default
         "model_slots": ["", ""],  # Start with 2 empty slots
         "comparison_results": None,
         "voted_this_session": set(),
@@ -309,27 +312,50 @@ def render_compare_page():
             # Reset votes for new comparison
             st.session_state.voted_this_session = set()
             
+            # Determine if we should run voting (2+ models and voting enabled)
+            run_voting = len(selected_models) >= 2 and st.session_state.council_voting_enabled
+            
             # Run comparison
             with st.spinner(f"Running comparison across {len(selected_models)} models..."):
                 progress_bar = st.progress(0)
+                status_text = st.empty()
                 
                 def update_progress(completed):
                     progress_bar.progress(completed / len(selected_models))
+                    status_text.text(f"Getting responses: {completed}/{len(selected_models)}")
                 
                 cache_mgr = get_cache_manager()
                 cache_mgr.set_enabled(st.session_state.cache_enabled)
                 
-                session = run_comparison(
-                    api_key=effective_key,
-                    prompt=prompt,
-                    model_ids=selected_models,
-                    temperature=st.session_state.temperature,
-                    use_cache=st.session_state.cache_enabled,
-                    progress_callback=update_progress
-                )
+                if run_voting:
+                    # Two-step process: comparison + voting
+                    def update_voting_progress(completed):
+                        progress_bar.progress(completed / len(selected_models))
+                        status_text.text(f"Council voting: {completed}/{len(selected_models)}")
+                    
+                    session = run_comparison_with_voting(
+                        api_key=effective_key,
+                        prompt=prompt,
+                        model_ids=selected_models,
+                        temperature=st.session_state.temperature,
+                        use_cache=st.session_state.cache_enabled,
+                        progress_callback=update_progress,
+                        voting_progress_callback=update_voting_progress
+                    )
+                else:
+                    # Single step: just comparison
+                    session = run_comparison(
+                        api_key=effective_key,
+                        prompt=prompt,
+                        model_ids=selected_models,
+                        temperature=st.session_state.temperature,
+                        use_cache=st.session_state.cache_enabled,
+                        progress_callback=update_progress
+                    )
                 
                 st.session_state.comparison_results = session
                 progress_bar.empty()
+                status_text.empty()
     
     # Display results
     if st.session_state.comparison_results:
@@ -386,12 +412,95 @@ def render_compare_page():
         # Show voted models
         if voted:
             st.info(f"You've voted on: {', '.join(voted)}")
+        
+        # Show Council Voting Results if available
+        if session.voting_enabled and session.voting_session:
+            render_voting_results(session.voting_session, st.session_state.anonymous_mode)
+
+
+def render_voting_results(voting_session: VotingSession, anonymous_mode: bool = True):
+    """Render the council voting results section."""
+    st.divider()
+    st.subheader("🗳️ Council Voting Results")
+    st.caption("Each model voted for the response they consider best (anonymized)")
+    
+    # Get winner info
+    winner = get_voting_winner(voting_session)
+    
+    if not winner:
+        st.warning("No valid votes were cast.")
+        return
+    
+    # Display winner announcement
+    if winner["is_tie"]:
+        tied_count = len(winner["tied_labels"])
+        st.info(f"🤝 **It's a tie!** {tied_count} responses received {winner['vote_count']} votes each.")
+    else:
+        winner_label = winner["winner_label"]
+        winner_model_id = winner["winner_model_id"]
+        
+        # Find the model name from the voting session
+        winner_name = None
+        for result in voting_session.voting_results:
+            if result.voted_for_model_id == winner_model_id:
+                winner_name = result.voted_for_model_name
+                break
+        
+        if anonymous_mode:
+            st.success(f"🏆 **Council Winner: Response {winner_label}** with {winner['vote_count']}/{winner['total_votes']} votes")
+        else:
+            display_name = winner_name or winner_model_id
+            st.success(f"🏆 **Council Winner: {display_name}** (Response {winner_label}) with {winner['vote_count']}/{winner['total_votes']} votes")
+    
+    # Vote breakdown
+    st.markdown("#### Vote Breakdown")
+    
+    # Create columns for vote counts
+    labels = list(voting_session.vote_counts.keys())
+    cols = st.columns(len(labels))
+    
+    for i, label in enumerate(labels):
+        vote_count = voting_session.vote_counts[label]
+        model_id = voting_session.label_to_model.get(label, "Unknown")
+        
+        with cols[i]:
+            # Find model name
+            model_name = None
+            for result in voting_session.voting_results:
+                if result.voted_for_model_id == model_id:
+                    model_name = result.voted_for_model_name
+                    break
+            
+            if anonymous_mode:
+                st.metric(f"Response {label}", f"{vote_count} votes")
+            else:
+                display_name = model_name or model_id
+                # Truncate long names
+                if len(display_name) > 20:
+                    display_name = display_name[:17] + "..."
+                st.metric(display_name, f"{vote_count} votes", help=f"Response {label}")
+    
+    # Show individual votes in an expander
+    with st.expander("📋 See how each model voted"):
+        for result in voting_session.voting_results:
+            if result.success:
+                voter = result.voter_model_name if not anonymous_mode else f"Voter (hidden)"
+                voted_for = result.voted_for_label
+                voted_for_name = result.voted_for_model_name if not anonymous_mode else f"Response {voted_for}"
+                
+                if anonymous_mode:
+                    st.markdown(f"• A model voted for **Response {voted_for}**")
+                else:
+                    st.markdown(f"• **{voter}** voted for **{voted_for_name}** (Response {voted_for})")
+            else:
+                voter = result.voter_model_name if not anonymous_mode else "A model"
+                st.markdown(f"• ❌ {voter} - Vote failed: {result.error}")
 
 
 def render_leaderboard_page():
-    """Render the leaderboard page."""
-    st.title("🏆 Model Leaderboard")
-    st.markdown("Rankings based on your votes across comparison sessions")
+    """Render the user voting leaderboard page."""
+    st.title("🏆 User Voting Leaderboard")
+    st.markdown("Rankings based on **your manual votes** across comparison sessions")
     
     storage = get_leaderboard_storage()
     leaderboard_data = storage.export_leaderboard()
@@ -433,10 +542,105 @@ def render_leaderboard_page():
     st.divider()
     
     with st.expander("⚠️ Danger Zone"):
-        st.warning("This will permanently delete all vote data.")
+        st.warning("This will permanently delete all user vote data.")
         if st.button("Reset All Votes", type="secondary"):
             storage.reset_votes()
             st.success("All votes have been reset!")
+            st.rerun()
+
+
+def render_council_leaderboard_page():
+    """Render the council voting leaderboard page."""
+    st.title("🗳️ Council Voting Leaderboard")
+    st.markdown("Rankings based on **model-to-model votes** - when models vote for each other's responses")
+    
+    storage = get_council_leaderboard_storage()
+    leaderboard_data = storage.export_leaderboard()
+    
+    entries = leaderboard_data.get("leaderboard", [])
+    
+    if not entries:
+        st.info("No council votes recorded yet. Run a comparison with 2+ models and Council Voting enabled to start building the leaderboard!")
+        return
+    
+    # Sort options
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        sort_by = st.selectbox(
+            "Sort by",
+            ["Votes Received", "Times Participated", "Win Rate"],
+            label_visibility="collapsed"
+        )
+    
+    sort_map = {
+        "Votes Received": "votes_received",
+        "Times Participated": "times_participated",
+        "Win Rate": "win_rate"
+    }
+    
+    # Re-fetch with new sort
+    sorted_leaderboard = storage.get_leaderboard(sort_by=sort_map[sort_by])
+    
+    st.markdown(f"**{len(sorted_leaderboard)} models ranked** | Last updated: {leaderboard_data.get('last_updated', 'Unknown')[:10]}")
+    
+    # Table header
+    cols = st.columns([1, 4, 2, 2, 2])
+    with cols[0]:
+        st.markdown("**Rank**")
+    with cols[1]:
+        st.markdown("**Model**")
+    with cols[2]:
+        st.markdown("**Votes Received**")
+    with cols[3]:
+        st.markdown("**Sessions**")
+    with cols[4]:
+        st.markdown("**Win Rate**")
+    
+    st.divider()
+    
+    # Table rows
+    for i, score in enumerate(sorted_leaderboard):
+        rank = i + 1
+        
+        cols = st.columns([1, 4, 2, 2, 2])
+        
+        with cols[0]:
+            # Medal for top 3
+            if rank == 1:
+                st.markdown("🥇")
+            elif rank == 2:
+                st.markdown("🥈")
+            elif rank == 3:
+                st.markdown("🥉")
+            else:
+                st.markdown(f"#{rank}")
+        
+        with cols[1]:
+            st.markdown(score.model_name)
+        
+        with cols[2]:
+            st.markdown(f"**{score.votes_received}**")
+        
+        with cols[3]:
+            st.markdown(str(score.times_participated))
+        
+        with cols[4]:
+            win_rate = score.win_rate
+            if win_rate >= 50:
+                st.markdown(f"🟢 **{win_rate:.1f}%**")
+            elif win_rate >= 25:
+                st.markdown(f"🟡 **{win_rate:.1f}%**")
+            else:
+                st.markdown(f"⚪ **{win_rate:.1f}%**")
+    
+    # Reset button
+    st.divider()
+    
+    with st.expander("⚠️ Danger Zone"):
+        st.warning("This will permanently delete all council vote data.")
+        if st.button("Reset Council Votes", type="secondary"):
+            storage.reset_votes()
+            st.success("All council votes have been reset!")
             st.rerun()
 
 
@@ -450,19 +654,20 @@ def main():
     st.sidebar.header("📍 Navigation")
     page = st.sidebar.radio(
         "Go to",
-        ["Compare Models", "Leaderboard"],
+        ["Compare Models", "User Leaderboard", "Council Leaderboard"],
         label_visibility="collapsed"
     )
 
     st.sidebar.divider()
 
     # Sidebar settings
-    new_api_key, new_temperature, new_cache_enabled, new_use_env = render_settings_sidebar(
+    new_api_key, new_temperature, new_cache_enabled, new_use_env, new_council_voting = render_settings_sidebar(
         api_key=st.session_state.api_key,
         temperature=st.session_state.temperature,
         cache_enabled=st.session_state.cache_enabled,
         use_env_api_key=st.session_state.use_env_api_key,
-        env_api_key_available=st.session_state.env_api_key_available
+        env_api_key_available=st.session_state.env_api_key_available,
+        council_voting_enabled=st.session_state.council_voting_enabled
     )
     
     # Update settings
@@ -476,6 +681,7 @@ def main():
     
     st.session_state.temperature = new_temperature
     st.session_state.cache_enabled = new_cache_enabled
+    st.session_state.council_voting_enabled = new_council_voting
     
     # Sidebar info
     st.sidebar.divider()
@@ -489,13 +695,21 @@ def main():
     storage = get_leaderboard_storage()
     leaderboard = storage.get_leaderboard()
     total_votes = sum(s.total_votes for s in leaderboard)
-    st.sidebar.caption(f"🗳️ Total votes: {total_votes}")
+    st.sidebar.caption(f"👤 User votes: {total_votes}")
+    
+    # Show council vote stats
+    council_storage = get_council_leaderboard_storage()
+    council_leaderboard = council_storage.get_leaderboard()
+    total_council_votes = sum(s.votes_received for s in council_leaderboard)
+    st.sidebar.caption(f"🗳️ Council votes: {total_council_votes}")
     
     # Render selected page
     if page == "Compare Models":
         render_compare_page()
-    elif page == "Leaderboard":
+    elif page == "User Leaderboard":
         render_leaderboard_page()
+    elif page == "Council Leaderboard":
+        render_council_leaderboard_page()
 
 
 if __name__ == "__main__":

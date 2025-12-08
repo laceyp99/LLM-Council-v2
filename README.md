@@ -8,9 +8,10 @@ A modular AI comparison app built with Python and Streamlit. Compare responses f
 ## Features
 
 - ⚖️ **Side-by-side comparison** - Run the same prompt through multiple AI models simultaneously
+- 🗳️ **Council Voting** - After responses, each model votes for the best answer (anonymized) to determine a winner
 - 🎭 **Anonymous mode** - Model names hidden by default for unbiased evaluation (toggle to reveal)
 - ⚡ **Parallel execution** - Fast comparisons with concurrent API calls
-- 🗳️ **Voting system** - Vote on best and worst responses to track model performance
+- 👍👎 **Manual Voting system** - Vote on best and worst responses to track model performance
 - 🏆 **Leaderboard** - See cumulative rankings based on your votes (net score = best - worst)
 - 💾 **Response caching** - Optional caching to save costs on repeated prompts
 
@@ -76,18 +77,38 @@ The app will open in your browser at `http://localhost:8501`.
 4. Click "🚀 Run Comparison"
 5. View results side-by-side with markdown rendering or raw text
 
-### Voting
+### Council Voting (Automatic)
+
+When you compare 2 or more models with Council Voting enabled (on by default):
+1. All models first generate their responses to your prompt
+2. Each model then receives all responses (anonymized as Response A, B, C, etc.)
+3. Each model votes for which response they consider the best
+4. The winner is announced based on vote counts
+5. You can see the full breakdown of how each model voted
+
+This creates an unbiased "LLM Council" where models evaluate each other's outputs without knowing which model produced which response.
+
+### Manual Voting
 
 After a comparison:
 - Click 👍 **Best** on the response you prefer
 - Click 👎 **Worst** on the response you like least
 - Votes persist across sessions and build your personal leaderboard
 
-### Leaderboard
+### Two Leaderboards
 
-- View all models ranked by net score (Best votes - Worst votes)
-- Sort by different metrics (net score, best votes, worst votes, total votes)
-- Reset all votes if needed
+The app maintains **two separate leaderboards**:
+
+#### 🏆 User Leaderboard
+- Based on **your manual votes** (👍 Best / 👎 Worst buttons)
+- Net score = Best votes - Worst votes
+- Reflects your personal preferences across all sessions
+
+#### 🗳️ Council Leaderboard
+- Based on **model-to-model votes** from Council Voting
+- Tracks how many times each model's response was chosen as best by other models
+- Shows participation count and win rate
+- A more "objective" ranking since models evaluate each other
 
 ## Tech Stack
 
@@ -106,7 +127,9 @@ llm-council-v2/
 │   ├── openrouter_client.py
 │   ├── model_metadata.py
 │   ├── compare_logic.py
-│   ├── leaderboard_storage.py
+│   ├── voting_logic.py          # Council voting logic
+│   ├── leaderboard_storage.py   # User votes storage
+│   ├── council_leaderboard.py   # Council votes storage
 │   ├── cache_manager.py
 │   └── ui_components.py
 ├── data/
